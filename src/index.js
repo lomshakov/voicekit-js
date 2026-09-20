@@ -516,6 +516,146 @@ export class VoiceKitClient {
     return this.#getJson("/v1/billing/balance");
   }
 
+  // ──────────────────────── Recordings ───────────────────────────────
+
+  /**
+   * List the caller's recordings (newest first).
+   * @param {{ source?: string, limit?: number, offset?: number }} [opts]
+   * @returns {Promise<Record<string, unknown>>}
+   */
+  listRecordings({ source, limit = 20, offset = 0 } = {}) {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    if (source) params.set("source", source);
+    return this.#getJson(`/v1/recordings?${params.toString()}`);
+  }
+
+  /**
+   * @param {string} recordingId
+   * @returns {Promise<Record<string, unknown>>}
+   */
+  getRecording(recordingId) {
+    return this.#getJson(`/v1/recordings/${recordingId}`);
+  }
+
+  /**
+   * @param {string} recordingId
+   * @returns {Promise<Record<string, unknown>>}
+   */
+  getRecordingTranscript(recordingId) {
+    return this.#getJson(`/v1/recordings/${recordingId}/transcript`);
+  }
+
+  /**
+   * Delete a recording and its stored audio.
+   * @param {string} recordingId
+   * @returns {Promise<void>}
+   */
+  async deleteRecording(recordingId) {
+    await this.#request(`/v1/recordings/${recordingId}`, { method: "DELETE" });
+  }
+
+  /**
+   * Download a recording's stored audio.
+   * @param {string} recordingId
+   * @returns {Promise<Uint8Array>}
+   */
+  async downloadRecordingAudio(recordingId) {
+    const response = await this.#request(`/v1/recordings/${recordingId}/audio`);
+    return new Uint8Array(await response.arrayBuffer());
+  }
+
+  /**
+   * Export a recording's transcript (txt|md|srt|vtt|docx).
+   * @param {string} recordingId
+   * @param {"txt" | "md" | "srt" | "vtt" | "docx"} [format]
+   * @returns {Promise<Uint8Array>}
+   */
+  async exportRecording(recordingId, format = "txt") {
+    const response = await this.#request(
+      `/v1/recordings/${recordingId}/export?format=${format}`,
+    );
+    return new Uint8Array(await response.arrayBuffer());
+  }
+
+  /**
+   * Create a public share link for a recording.
+   * @param {string} recordingId
+   * @param {{ expiresInSeconds?: number, password?: string }} [opts]
+   * @returns {Promise<Record<string, unknown>>}
+   */
+  createShare(recordingId, opts = {}) {
+    return this.#postJson(
+      `/v1/recordings/${recordingId}/share`,
+      compact({ expires_in_seconds: opts.expiresInSeconds, password: opts.password }),
+    );
+  }
+
+  /**
+   * List the active share links for a recording.
+   * @param {string} recordingId
+   * @returns {Promise<Array<Record<string, unknown>>>}
+   */
+  listShares(recordingId) {
+    return this.#getJson(`/v1/recordings/${recordingId}/share`);
+  }
+
+  /**
+   * Revoke a share link.
+   * @param {string} recordingId
+   * @param {string} token
+   * @returns {Promise<void>}
+   */
+  async revokeShare(recordingId, token) {
+    await this.#request(`/v1/recordings/${recordingId}/share/${token}`, { method: "DELETE" });
+  }
+
+  // ──────────────────────── Call QA (7.7) ────────────────────────────
+
+  /**
+   * Evaluate a recording against a QA checklist (Pro/Business).
+   * @param {string} recordingId
+   * @param {Array<Record<string, unknown>>} checklist
+   * @param {{ webhookUrl?: string }} [opts]
+   * @returns {Promise<Record<string, unknown>>}
+   */
+  qaEvaluate(recordingId, checklist, opts = {}) {
+    return this.#postJson(
+      "/v1/qa/evaluate",
+      compact({ recording_id: recordingId, checklist, webhook_url: opts.webhookUrl }),
+    );
+  }
+
+  /**
+   * Aggregated QA analytics: score trend, top violations, score by operator.
+   * @param {number} [days]
+   * @returns {Promise<Record<string, unknown>>}
+   */
+  qaAnalytics(days = 30) {
+    return this.#getJson(`/v1/qa/analytics?days=${days}`);
+  }
+
+  /**
+   * List the caller's persisted QA evaluations (newest first).
+   * @param {{ limit?: number, offset?: number }} [opts]
+   * @returns {Promise<Record<string, unknown>>}
+   */
+  qaEvaluations({ limit = 20, offset = 0 } = {}) {
+    return this.#getJson(`/v1/qa/evaluations?limit=${limit}&offset=${offset}`);
+  }
+
+  /**
+   * Export QA evaluations as CSV/JSON for CRM import.
+   * @param {"csv" | "json"} [format]
+   * @param {number} [days]
+   * @returns {Promise<Uint8Array>}
+   */
+  async qaExport(format = "csv", days = 30) {
+    const response = await this.#request(
+      `/v1/qa/evaluations/export?format=${format}&days=${days}`,
+    );
+    return new Uint8Array(await response.arrayBuffer());
+  }
+
   // ──────────────────────── Streaming (WebSocket) ────────────────────
 
   /**

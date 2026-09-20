@@ -87,6 +87,28 @@ export class VoiceKitClient {
   usage(): Promise<Record<string, unknown>>;
   billingBalance(): Promise<Record<string, unknown>>;
 
+  listRecordings(opts?: RecordingsListOptions): Promise<Record<string, unknown>>;
+  getRecording(recordingId: string): Promise<Record<string, unknown>>;
+  getRecordingTranscript(recordingId: string): Promise<Record<string, unknown>>;
+  deleteRecording(recordingId: string): Promise<void>;
+  downloadRecordingAudio(recordingId: string): Promise<Uint8Array>;
+  exportRecording(
+    recordingId: string,
+    format?: "txt" | "md" | "srt" | "vtt" | "docx",
+  ): Promise<Uint8Array>;
+  createShare(recordingId: string, opts?: CreateShareOptions): Promise<Record<string, unknown>>;
+  listShares(recordingId: string): Promise<Array<Record<string, unknown>>>;
+  revokeShare(recordingId: string, token: string): Promise<void>;
+
+  qaEvaluate(
+    recordingId: string,
+    checklist: Array<Record<string, unknown>>,
+    opts?: QaEvaluateOptions,
+  ): Promise<Record<string, unknown>>;
+  qaAnalytics(days?: number): Promise<Record<string, unknown>>;
+  qaEvaluations(opts?: QaEvaluationsOptions): Promise<Record<string, unknown>>;
+  qaExport(format?: "csv" | "json", days?: number): Promise<Uint8Array>;
+
   transcribeStream(opts?: TranscribeStreamOptions): Promise<WsStream>;
   vadStream(): Promise<WsStream>;
 }
@@ -123,6 +145,26 @@ export interface AudioCleaningOptions {
   options?: Record<string, unknown>;
   outputFormat?: "wav" | "mp3" | "ogg";
   webhookUrl?: string;
+}
+
+export interface RecordingsListOptions {
+  source?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface CreateShareOptions {
+  expiresInSeconds?: number;
+  password?: string;
+}
+
+export interface QaEvaluateOptions {
+  webhookUrl?: string;
+}
+
+export interface QaEvaluationsOptions {
+  limit?: number;
+  offset?: number;
 }
 
 export interface VoiceIdResult {
