@@ -120,6 +120,23 @@ const cleanFile = await client.downloadAudioCleaning(cleanJob.job_id);
 await writeFile("voice_clean.wav", cleanFile);
 ```
 
+### Search & Q&A (Pro/Business)
+
+```js
+// Hybrid semantic/full-text search over your recordings
+const hits = await client.search("почему клиент отказался?", {
+  limit: 5,
+  keywords: "дорого",
+  source: "upload",
+});
+for (const h of hits.hits) console.log(h.score, h.start, h.text);
+
+// RAG question with verbatim citations
+const answer = await client.ask("почему клиент отказался от Pro?");
+console.log(answer.answer);
+for (const c of answer.citations) console.log(c.recording_id, c.start, c.quote);
+```
+
 ### WebSocket streaming (Pro/Business)
 
 ```js

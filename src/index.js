@@ -656,6 +656,49 @@ export class VoiceKitClient {
     return new Uint8Array(await response.arrayBuffer());
   }
 
+  // ──────────────────────── Search & Q&A (7.6) ────────────────────────
+
+  /**
+   * Hybrid semantic/full-text search over recordings (Pro/Business).
+   * @param {string} query
+   * @param {{
+   *   limit?: number,
+   *   keywords?: string,
+   *   source?: "upload" | "link" | "bot" | "stream",
+   *   speaker?: string,
+   *   from?: string,
+   *   to?: string,
+   *   minDurationSeconds?: number,
+   *   maxDurationSeconds?: number,
+   * }} [opts]
+   * @returns {Promise<Record<string, unknown>>}
+   */
+  search(query, opts = {}) {
+    return this.#postJson(
+      "/v1/search",
+      compact({
+        query,
+        limit: opts.limit,
+        keywords: opts.keywords,
+        source: opts.source,
+        speaker: opts.speaker,
+        from: opts.from,
+        to: opts.to,
+        min_duration_seconds: opts.minDurationSeconds,
+        max_duration_seconds: opts.maxDurationSeconds,
+      }),
+    );
+  }
+
+  /**
+   * Answer a question over recordings (RAG) with verbatim citations.
+   * @param {string} query
+   * @returns {Promise<Record<string, unknown>>}
+   */
+  ask(query) {
+    return this.#postJson("/v1/ask", { query });
+  }
+
   // ──────────────────────── Streaming (WebSocket) ────────────────────
 
   /**

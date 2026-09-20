@@ -109,6 +109,9 @@ export class VoiceKitClient {
   qaEvaluations(opts?: QaEvaluationsOptions): Promise<Record<string, unknown>>;
   qaExport(format?: "csv" | "json", days?: number): Promise<Uint8Array>;
 
+  search(query: string, opts?: SearchOptions): Promise<Record<string, unknown>>;
+  ask(query: string): Promise<Record<string, unknown>>;
+
   transcribeStream(opts?: TranscribeStreamOptions): Promise<WsStream>;
   vadStream(): Promise<WsStream>;
 }
@@ -165,6 +168,17 @@ export interface QaEvaluateOptions {
 export interface QaEvaluationsOptions {
   limit?: number;
   offset?: number;
+}
+
+export interface SearchOptions {
+  limit?: number;
+  keywords?: string;
+  source?: "upload" | "link" | "bot" | "stream";
+  speaker?: string;
+  from?: string;
+  to?: string;
+  minDurationSeconds?: number;
+  maxDurationSeconds?: number;
 }
 
 export interface VoiceIdResult {
