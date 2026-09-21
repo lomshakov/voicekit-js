@@ -33,7 +33,15 @@ export class VoiceKitClient {
   transcribe(audio: AudioSource, opts?: AudioOptions): Promise<Record<string, unknown>>;
   transcribeSync(audio: AudioSource, opts?: AudioOptions): Promise<Record<string, unknown>>;
   getTranscriptionJob(jobId: string): Promise<Record<string, unknown>>;
-  subtitles(jobId: string, format?: "vtt" | "srt"): Promise<string>;
+  subtitles(
+    jobId: string,
+    format?: "vtt" | "srt",
+    opts?: SubtitlesOptions,
+  ): Promise<string>;
+  translateTranscript(
+    jobId: string,
+    targetLanguage: string,
+  ): Promise<Record<string, unknown>>;
   vad(audio: AudioSource): Promise<Record<string, unknown>>;
   voiceId(audio: AudioSource): Promise<VoiceIdResult>;
   enrollVoice(audio: AudioSource, name?: string): Promise<Record<string, unknown>>;
@@ -88,8 +96,15 @@ export class VoiceKitClient {
   billingBalance(): Promise<Record<string, unknown>>;
 
   listRecordings(opts?: RecordingsListOptions): Promise<Record<string, unknown>>;
+  recordingFromLink(url: string, language?: string): Promise<Record<string, unknown>>;
   getRecording(recordingId: string): Promise<Record<string, unknown>>;
   getRecordingTranscript(recordingId: string): Promise<Record<string, unknown>>;
+  recordingSpeakers(recordingId: string): Promise<Record<string, unknown>>;
+  updateSpeaker(
+    recordingId: string,
+    speakerId: string,
+    opts?: UpdateSpeakerOptions,
+  ): Promise<Record<string, unknown>>;
   deleteRecording(recordingId: string): Promise<void>;
   downloadRecordingAudio(recordingId: string): Promise<Uint8Array>;
   exportRecording(
@@ -111,6 +126,15 @@ export class VoiceKitClient {
 
   search(query: string, opts?: SearchOptions): Promise<Record<string, unknown>>;
   ask(query: string): Promise<Record<string, unknown>>;
+  meetingProtocol(
+    recordingId: string,
+    template?: MeetingTemplate,
+  ): Promise<Record<string, unknown>>;
+  evaluate(
+    audio: AudioSource,
+    reference: string,
+    opts?: EvaluateOptions,
+  ): Promise<Record<string, unknown>>;
 
   transcribeStream(opts?: TranscribeStreamOptions): Promise<WsStream>;
   vadStream(): Promise<WsStream>;
@@ -243,6 +267,8 @@ export interface AudioOptions {
   emotions?: boolean;
   keywords?: boolean;
   entities?: boolean;
+  clean?: boolean;
+  longForm?: boolean;
 }
 
 export interface CloneVoiceCreateInput {
@@ -256,6 +282,29 @@ export interface TranscribeStreamOptions {
   language?: string;
   keyterms?: string[];
   interim?: boolean;
+}
+
+export interface SubtitlesOptions {
+  targetLanguage?: string;
+  hotMarks?: boolean;
+}
+
+export type MeetingTemplate =
+  | "custom"
+  | "standup"
+  | "demo"
+  | "interview"
+  | "retro"
+  | "one_on_one";
+
+export interface EvaluateOptions {
+  language?: string;
+  normalize?: boolean;
+}
+
+export interface UpdateSpeakerOptions {
+  displayName?: string;
+  role?: string;
 }
 
 export class WsStream {

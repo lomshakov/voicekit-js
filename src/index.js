@@ -211,11 +211,25 @@ export class VoiceKitClient {
    * Download VTT/SRT subtitles for a completed transcription job.
    * @param {string} jobId
    * @param {"vtt" | "srt"} [format]
+   * @param {{ targetLanguage?: string, hotMarks?: boolean }} [opts]
    * @returns {Promise<string>}
    */
-  async subtitles(jobId, format = "vtt") {
-    const response = await this.#request(`/v1/transcribe/${jobId}/subtitles?format=${format}`);
+  async subtitles(jobId, format = "vtt", opts = {}) {
+    const params = new URLSearchParams({ format });
+    if (opts.targetLanguage) params.set("target_language", opts.targetLanguage);
+    if (opts.hotMarks) params.set("hot_marks", "true");
+    const response = await this.#request(`/v1/transcribe/${jobId}/subtitles?${params.toString()}`);
     return response.text();
+  }
+
+  /**
+   * Translate a completed transcription job's transcript.
+   * @param {string} jobId
+   * @param {string} targetLanguage
+   * @returns {Promise<Record<string, unknown>>}
+   */
+  translateTranscript(jobId, targetLanguage) {
+    return this.#postJson(`/v1/transcribe/${jobId}/translate`, { target_language: targetLanguage });
   }
 
   /**
@@ -530,6 +544,16 @@ export class VoiceKitClient {
   }
 
   /**
+   * Start a diarized transcription from a public audio URL (Link channel).
+   * @param {string} url
+   * @param {string} [language]
+   * @returns {Promise<Record<string, unknown>>}
+   */
+  recordingFromLink(url, language) {
+    return this.#postJson("/v1/recordings/from-link", compact({ url, language }));
+  }
+
+  /**
    * @param {string} recordingId
    * @returns {Promise<Record<string, unknown>>}
    */
@@ -543,6 +567,30 @@ export class VoiceKitClient {
    */
   getRecordingTranscript(recordingId) {
     return this.#getJson(`/v1/recordings/${recordingId}/transcript`);
+  }
+
+  /**
+   * Fetch a recording's speakers, timeline and conversation metrics.
+   * @param {string} recordingId
+   * @returns {Promise<Record<string, unknown>>}
+   */
+  recordingSpeakers(recordingId) {
+    return this.#getJson(`/v1/recordings/${recordingId}/speakers`);
+  }
+
+  /**
+   * Rename a speaker or assign a role (operator/client/participant).
+   * @param {string} recordingId
+   * @param {string} speakerId
+   * @param {{ displayName?: string, role?: string }} [opts]
+   * @returns {Promise<Record<string, unknown>>}
+   */
+  async updateSpeaker(recordingId, speakerId, opts = {}) {
+    const response = await this.#request(
+      `/v1/recordings/${recordingId}/speakers/${speakerId}`,
+      { method: "PATCH", json: compact({ display_name: opts.displayName, role: opts.role }) },
+    );
+    return response.json();
   }
 
   /**
@@ -697,6 +745,35 @@ export class VoiceKitClient {
    */
   ask(query) {
     return this.#postJson("/v1/ask", { query });
+  }
+
+  // ──────────────────────── Meeting intelligence ────────────────────
+
+  /**
+   * Generate a meeting protocol (TL;DR, decisions, tasks, risks, next steps).
+   * @param {string} recordingId
+   * @param {"custom" | "standup" | "demo" | "interview" | "retro" | "one_on_one"} [template]
+   * @returns {Promise<Record<string, unknown>>}
+   */
+  meetingProtocol(recordingId, template = "custom") {
+    return this.#postJson("/v1/meetings/protocol", { recording_id: recordingId, template });
+  }
+
+  // ──────────────────────── Speech evaluation (WER) ──────────────────
+
+  /**
+   * Evaluate speech quality against a reference text (word error rate).
+   * @param {AudioSource} audio
+   * @param {string} reference
+   * @param {{ language?: string, normalize?: boolean }} [opts]
+   * @returns {Promise<Record<string, unknown>>}
+   */
+  evaluate(audio, reference, opts = {}) {
+    return this.#postForm("/v1/eval", audio, {
+      reference,
+      language: opts.language,
+      normalize: opts.normalize,
+    });
   }
 
   // ──────────────────────── Streaming (WebSocket) ────────────────────

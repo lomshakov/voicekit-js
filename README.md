@@ -177,6 +177,28 @@ const profiles = await client.listVoiceProfiles();
 await client.deleteVoiceProfile(profile.profile_id);
 ```
 
+### Recordings, QA & meeting intelligence (Pro/Business)
+
+```js
+// Recordings library (list / link channel / speakers)
+const recordings = await client.listRecordings({ limit: 10 });
+const job = await client.recordingFromLink("https://example.com/call.mp3"); // Link channel
+const speakers = await client.recordingSpeakers(recordingId);
+await client.updateSpeaker(recordingId, "SPEAKER_00", { displayName: "Alice", role: "operator" });
+
+// Call QA
+const qa = await client.qaEvaluate(recordingId, [{ id: "greeting", kind: "required", description: "..." }]);
+const trend = await client.qaAnalytics(30);
+const csv = await client.qaExport("csv");
+
+// Meeting protocol
+const protocol = await client.meetingProtocol(recordingId, "standup");
+
+// Translation & speech evaluation
+const translated = await client.translateTranscript(jobId, "en");
+const wer = await client.evaluate("audio.wav", "Ожидаемый текст");
+```
+
 ## Examples
 
 Runnable scripts live in [`examples/`](./examples): synthesis, streaming, transcription,
