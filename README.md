@@ -185,6 +185,8 @@ const recordings = await client.listRecordings({ limit: 10 });
 const job = await client.recordingFromLink("https://example.com/call.mp3"); // Link channel
 const speakers = await client.recordingSpeakers(recordingId);
 await client.updateSpeaker(recordingId, "SPEAKER_00", { displayName: "Alice", role: "operator" });
+await client.updateRecording(recordingId, { tags: ["sales", "warm"], folder: "Q3" });
+const pdf = await client.exportRecording(recordingId, "pdf");
 
 // Call QA
 const qa = await client.qaEvaluate(recordingId, [{ id: "greeting", kind: "required", description: "..." }]);

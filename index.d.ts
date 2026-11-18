@@ -96,6 +96,9 @@ export class VoiceKitClient {
   billingBalance(): Promise<Record<string, unknown>>;
 
   listRecordings(opts?: RecordingsListOptions): Promise<Record<string, unknown>>;
+  listRecordingTags(): Promise<string[]>;
+  listRecordingFolders(): Promise<string[]>;
+  updateRecording(recordingId: string, opts?: UpdateRecordingOptions): Promise<Record<string, unknown>>;
   recordingFromLink(url: string, language?: string): Promise<Record<string, unknown>>;
   getRecording(recordingId: string): Promise<Record<string, unknown>>;
   getRecordingTranscript(recordingId: string): Promise<Record<string, unknown>>;
@@ -109,7 +112,7 @@ export class VoiceKitClient {
   downloadRecordingAudio(recordingId: string): Promise<Uint8Array>;
   exportRecording(
     recordingId: string,
-    format?: "txt" | "md" | "srt" | "vtt" | "docx",
+    format?: "txt" | "md" | "srt" | "vtt" | "docx" | "pdf",
   ): Promise<Uint8Array>;
   createShare(recordingId: string, opts?: CreateShareOptions): Promise<Record<string, unknown>>;
   listShares(recordingId: string): Promise<Array<Record<string, unknown>>>;
@@ -176,8 +179,15 @@ export interface AudioCleaningOptions {
 
 export interface RecordingsListOptions {
   source?: string;
+  tag?: string;
+  folder?: string;
   limit?: number;
   offset?: number;
+}
+
+export interface UpdateRecordingOptions {
+  tags?: string[] | null;
+  folder?: string | null;
 }
 
 export interface CreateShareOptions {

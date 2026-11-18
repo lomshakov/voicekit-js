@@ -534,13 +534,49 @@ export class VoiceKitClient {
 
   /**
    * List the caller's recordings (newest first).
-   * @param {{ source?: string, limit?: number, offset?: number }} [opts]
+   * @param {{ source?: string, tag?: string, folder?: string, limit?: number, offset?: number }} [opts]
    * @returns {Promise<Record<string, unknown>>}
    */
-  listRecordings({ source, limit = 20, offset = 0 } = {}) {
+  listRecordings({ source, tag, folder, limit = 20, offset = 0 } = {}) {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
     if (source) params.set("source", source);
+    if (tag) params.set("tag", tag);
+    if (folder) params.set("folder", folder);
     return this.#getJson(`/v1/recordings?${params.toString()}`);
+  }
+
+  /**
+   * Distinct tags across the caller's recordings (sorted).
+   * @returns {Promise<string[]>}
+   */
+  async listRecordingTags() {
+    return (await this.#getJson("/v1/recordings/tags")).values ?? [];
+  }
+
+  /**
+   * Distinct folders across the caller's recordings (sorted).
+   * @returns {Promise<string[]>}
+   */
+  async listRecordingFolders() {
+    return (await this.#getJson("/v1/recordings/folders")).values ?? [];
+  }
+
+  /**
+   * Update a recording's tags and/or folder. Pass `tags: null` or `folder: null`
+   * to clear a field; omit a key to leave it untouched.
+   * @param {string} recordingId
+   * @param {{ tags?: string[] | null, folder?: string | null }} [opts]
+   * @returns {Promise<Record<string, unknown>>}
+   */
+  async updateRecording(recordingId, opts = {}) {
+    const body = {};
+    if (Object.prototype.hasOwnProperty.call(opts, "tags")) body.tags = opts.tags;
+    if (Object.prototype.hasOwnProperty.call(opts, "folder")) body.folder = opts.folder;
+    const response = await this.#request(`/v1/recordings/${recordingId}`, {
+      method: "PATCH",
+      json: body,
+    });
+    return response.json();
   }
 
   /**
@@ -613,9 +649,9 @@ export class VoiceKitClient {
   }
 
   /**
-   * Export a recording's transcript (txt|md|srt|vtt|docx).
+   * Export a recording's transcript (txt|md|srt|vtt|docx|pdf).
    * @param {string} recordingId
-   * @param {"txt" | "md" | "srt" | "vtt" | "docx"} [format]
+   * @param {"txt" | "md" | "srt" | "vtt" | "docx" | "pdf"} [format]
    * @returns {Promise<Uint8Array>}
    */
   async exportRecording(recordingId, format = "txt") {
@@ -807,6 +843,216 @@ export class VoiceKitClient {
    * @param {string} path
    * @returns {Promise<Record<string, unknown>>}
    */
+  // ──────────────────────── Meetings ─────────────────────────────────
+
+  /**
+   * Automatically captured meetings (Zoom, Meet, calendar), newest first.
+   * @param {number} [limit]
+   * @returns {Promise<Record<string, unknown>>}
+   */
+  meetingEvents(limit = 50) {
+    return this.#getJson(`/v1/meetings/events?limit=${limit}`);
+  }
+
+  /**
+   * One captured meeting: status, job, recording and protocol ids.
+   * @param {string} eventId
+   */
+  meetingEvent(eventId) {
+    return this.#getJson(`/v1/meetings/events/${eventId}`);
+  }
+
+  /**
+   * Point a captured meeting at a CRM deal so its protocol lands there.
+   * @param {string} eventId
+   * @param {{ dealId?: string, phone?: string, email?: string }} [opts]
+   */
+  setMeetingTarget(eventId, opts = {}) {
+    return this.#putJson(`/v1/meetings/events/${eventId}/target`, compact(opts));
+  }
+
+  /** @param {string} eventId */
+  retryMeeting(eventId) {
+    return this.#postJson(`/v1/meetings/events/${eventId}/retry`, {});
+  }
+
+  /** @param {number} [limit] */
+  meetingCalendar(limit = 50) {
+    return this.#getJson(`/v1/meetings/calendar?limit=${limit}`);
+  }
+
+  syncMeetingCalendar() {
+    return this.#postJson("/v1/meetings/calendar/sync", {});
+  }
+
+  /** @param {string} eventId */
+  writebackMeetingCalendar(eventId) {
+    return this.#postJson(`/v1/meetings/events/${eventId}/calendar`, {});
+  }
+
+  /** @param {number} [limit] */
+  protocols(limit = 50) {
+    return this.#getJson(`/v1/meetings/protocols?limit=${limit}`);
+  }
+
+  /** @param {string} protocolId */
+  protocol(protocolId) {
+    return this.#getJson(`/v1/meetings/protocols/${protocolId}`);
+  }
+
+  /** @param {string} protocolId */
+  approveProtocol(protocolId) {
+    return this.#postJson(`/v1/meetings/protocols/${protocolId}/approve`, {});
+  }
+
+  /**
+   * @param {string} protocolId
+   * @param {string} markdown
+   */
+  updateProtocol(protocolId, markdown) {
+    return this.#putJson(`/v1/meetings/protocols/${protocolId}`, { markdown });
+  }
+
+  /**
+   * Download a protocol as md, pdf or docx.
+   * @param {string} protocolId
+   * @param {string} [format]
+   * @returns {Promise<Uint8Array>}
+   */
+  exportProtocol(protocolId, format = "md") {
+    const encoded = encodeURIComponent(format);
+    return this.#getBytes(`/v1/meetings/protocols/${protocolId}/export?format=${encoded}`);
+  }
+
+  /**
+   * Build a protocol against your own section schema or a saved template.
+   * @param {string} recordingId
+   * @param {{ templateId?: string, schema?: object, webhookUrl?: string }} [opts]
+   */
+  customProtocol(recordingId, opts = {}) {
+    return this.#postJson("/v1/meetings/protocol/custom", compact({ recordingId, ...opts }));
+  }
+
+  protocolTemplates() {
+    return this.#getJson("/v1/meetings/templates");
+  }
+
+  /**
+   * @param {string} name
+   * @param {object} [schema]
+   */
+  createProtocolTemplate(name, schema) {
+    return this.#postJson("/v1/meetings/templates", compact({ name, schema }));
+  }
+
+  /**
+   * @param {string} templateId
+   * @param {string} name
+   * @param {object} [schema]
+   */
+  updateProtocolTemplate(templateId, name, schema) {
+    return this.#putJson(`/v1/meetings/templates/${templateId}`, compact({ name, schema }));
+  }
+
+  /** @param {string} templateId */
+  deleteProtocolTemplate(templateId) {
+    return this.#delete(`/v1/meetings/templates/${templateId}`);
+  }
+
+  // ──────────────────────── Webhooks ─────────────────────────────────
+
+  /** Signing secret behind X-VoiceKit-Signature; created on first call. */
+  webhookSecret() {
+    return this.#getJson("/v1/webhooks/secret");
+  }
+
+  /** Issue a new signing secret; the previous one stops verifying at once. */
+  rotateWebhookSecret() {
+    return this.#postJson("/v1/webhooks/secret/rotate", {});
+  }
+
+  // ──────────────────────── Integrations ─────────────────────────────
+
+  /** External connections (Bitrix24, amoCRM, 1С), active and revoked. */
+  integrations() {
+    return this.#getJson("/v1/integrations/connections");
+  }
+
+  /**
+   * Store a provider credential (incoming-webhook URL or OAuth token).
+   * @param {string} provider
+   * @param {string} secret
+   * @param {{ displayName?: string, baseUrl?: string, refreshToken?: string, expiresAtUtc?: string, scopes?: string }} [opts]
+   */
+  connectIntegration(provider, secret, opts = {}) {
+    return this.#postJson("/v1/integrations/connections", compact({ provider, secret, ...opts }));
+  }
+
+  /** @param {string} connectionId */
+  deleteIntegration(connectionId) {
+    return this.#delete(`/v1/integrations/connections/${connectionId}`);
+  }
+
+  /**
+   * Start the OAuth handshake; meeting providers require consent.
+   * @param {string} provider
+   * @param {boolean} [consent]
+   */
+  integrationAuthorizeUrl(provider, consent = false) {
+    return this.#postJson(`/v1/integrations/${provider}/authorize`, { consent });
+  }
+
+  // ──────────────────────── CRM push ─────────────────────────────────
+
+  /**
+   * Push a recording artifact (protocol, transcript, qa) to a CRM deal.
+   * @param {string} recordingId
+   * @param {string} provider
+   * @param {{ kind?: string, dealId?: string, phone?: string, email?: string, sourceUrl?: string }} [opts]
+   */
+  pushRecording(recordingId, provider, opts = {}) {
+    const body = compact({ provider, kind: "protocol", ...opts });
+    return this.#postJson(`/v1/recordings/${recordingId}/push`, body);
+  }
+
+  /** @param {string} recordingId */
+  recordingPushes(recordingId) {
+    return this.#getJson(`/v1/recordings/${recordingId}/pushes`);
+  }
+
+  /**
+   * @param {string} recordingId
+   * @param {string} provider
+   * @param {string} kind
+   */
+  retryRecordingPush(recordingId, provider, kind) {
+    return this.#postJson(`/v1/recordings/${recordingId}/pushes/${provider}/${kind}/retry`, {});
+  }
+
+  // ──────────────────────── Billing ──────────────────────────────────
+
+  /**
+   * Create a card top-up payment and return the payment link.
+   * @param {number} amountRub
+   */
+  topUp(amountRub) {
+    return this.#postJson("/v1/billing/topup", { amountRub });
+  }
+
+  async #putJson(path, body) {
+    const response = await this.#request(path, { method: "PUT", json: body });
+    return response.json();
+  }
+
+  async #delete(path) {
+    await this.#request(path, { method: "DELETE" });
+  }
+
+  async #getBytes(path) {
+    const response = await this.#request(path);
+    return new Uint8Array(await response.arrayBuffer());
+  }
+
   async #getJson(path) {
     const response = await this.#request(path);
     return response.json();
